@@ -55,8 +55,8 @@ static const struct arg args[] = {
 	{ username,		"user:%s |",	NULL },
 	{ uptime,		"up:%s |",		NULL },
 	{ battery_state,"battery:%s ",	"BAT0" },
-	{ battery_perc,	"%s %% |",		"BAT0" },
-	{ ram_perc, "ram: %s |",		NULL },
-	{ cpu_perc, "cpu: %s |",		NULL },
+	{ battery_perc,	"%s%% |",		"BAT0" },
+	{ ram_perc, "ram: %s%% |",		NULL },
+	{ cpu_perc, "cpu: %s%% |",		NULL },
 	{ datetime,		"date:%s",		"%F %T" },
 };
