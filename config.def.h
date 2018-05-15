@@ -52,12 +52,13 @@ static const char unknown_str[] = "n/a";
  */
 static const struct arg args[] = {
 	/* function 	format          argument */
-	{ uptime,		"up:%s |",		NULL },
-	{ battery_state,"battery:%s ",	"BAT0" },
-	{ battery_perc,	"%s%% |",		"BAT0" },
-	{ ram_perc,		"ram: %s%% |",	NULL },
-	{ cpu_perc,		"cpu: %s%% |",	NULL },
+	{ battery_state,"battery: %s ",	"BAT0" },
+	{ battery_perc,	"%s%%|",		"BAT0" },
+	{ ram_perc,		"ram: %s%%|",	NULL },
+	{ cpu_perc,		"cpu: %s%%|",	NULL },
 	{ disk_used,	"disk: %.4s/",	"/" },
 	{ disk_total,	"%.4s GiB|",		"/" },
-	{ datetime,		"date:%s",		"%F %T" },
+	{ ipv4,			"eth: %s|",	"enp0s25" },
+	{ ipv4,			"wfi: %s|", "wlp3s0" },
+	{ datetime,		"%s",		"%F %T" },
 };
