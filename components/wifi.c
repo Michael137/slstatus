@@ -1,16 +1,17 @@
 /* See LICENSE file for copyright and license details. */
+#include <errno.h>
+#include <ifaddrs.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include "../util.h"
+
 #if defined(__linux__)
-	#include <errno.h>
-	#include <ifaddrs.h>
 	#include <limits.h>
 	#include <linux/wireless.h>
-	#include <sys/socket.h>
-	#include <stdio.h>
-	#include <string.h>
-	#include <sys/ioctl.h>
-	#include <unistd.h>
-
-	#include "../util.h"
 
 	const char *
 	wifi_perc(const char *iface)
@@ -22,11 +23,13 @@
 		char status[5];
 		FILE *fp;
 
-		snprintf(path, sizeof(path), "%s%s%s", "/sys/class/net/", iface,
-		         "/operstate");
+		if (esnprintf(path, sizeof(path),
+		              "/sys/class/net/%s/operstate",
+		              iface) < 0) {
+			return NULL;
+		}
 		if (!(fp = fopen(path, "r"))) {
-			fprintf(stderr, "fopen '%s': %s\n", path,
-			        strerror(errno));
+			warn("fopen '%s':", path);
 			return NULL;
 		}
 		p = fgets(status, 5, fp);
@@ -36,8 +39,7 @@
 		}
 
 		if (!(fp = fopen("/proc/net/wireless", "r"))) {
-			fprintf(stderr, "fopen '/proc/net/wireless': %s\n",
-			        strerror(errno));
+			warn("fopen '/proc/net/wireless':");
 			return NULL;
 		}
 
@@ -65,21 +67,23 @@
 	wifi_essid(const char *iface)
 	{
 		static char id[IW_ESSID_MAX_SIZE+1];
-		int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+		int sockfd;
 		struct iwreq wreq;
 
 		memset(&wreq, 0, sizeof(struct iwreq));
 		wreq.u.essid.length = IW_ESSID_MAX_SIZE+1;
-		snprintf(wreq.ifr_name, sizeof(wreq.ifr_name), "%s", iface);
+		if (esnprintf(wreq.ifr_name, sizeof(wreq.ifr_name),
+		              "%s", iface) < 0) {
+			return NULL;
+		}
 
-		if (sockfd < 0) {
-			fprintf(stderr, "socket 'AF_INET': %s\n",
-			        strerror(errno));
+		if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+			warn("socket 'AF_INET':");
 			return NULL;
 		}
 		wreq.u.essid.pointer = id;
 		if (ioctl(sockfd,SIOCGIWESSID, &wreq) < 0) {
-			fprintf(stderr, "ioctl 'SIOCGIWESSID': %s\n", strerror(errno));
+			warn("ioctl 'SIOCGIWESSID':");
 			close(sockfd);
 			return NULL;
 		}
@@ -93,5 +97,71 @@
 		return id;
 	}
 #elif defined(__OpenBSD__)
-	/* unimplemented */
+	#include <net/if.h>
+	#include <net/if_media.h>
+	#include <net80211/ieee80211.h>
+	#include <sys/select.h> /* before <sys/ieee80211_ioctl.h> for NBBY */
+	#include <net80211/ieee80211_ioctl.h>
+	#include <stdlib.h>
+	#include <sys/types.h>
+
+	static int
+	load_ieee80211_nodereq(const char *iface, struct ieee80211_nodereq *nr)
+	{
+		struct ieee80211_bssid bssid;
+		int sockfd;
+
+		memset(&bssid, 0, sizeof(bssid));
+		memset(nr, 0, sizeof(struct ieee80211_nodereq));
+		if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+			warn("socket 'AF_INET':");
+			return 0;
+		}
+		strlcpy(bssid.i_name, iface, sizeof(bssid.i_name));
+		if ((ioctl(sockfd, SIOCG80211BSSID, &bssid)) < 0) {
+			warn("ioctl 'SIOCG80211BSSID':");
+			close(sockfd);
+			return 0;
+		}
+		strlcpy(nr->nr_ifname, iface, sizeof(nr->nr_ifname));
+		memcpy(&nr->nr_macaddr, bssid.i_bssid, sizeof(nr->nr_macaddr));
+		if ((ioctl(sockfd, SIOCG80211NODE, nr)) < 0 && nr->nr_rssi) {
+			warn("ioctl 'SIOCG80211NODE':");
+			close(sockfd);
+			return 0;
+		}
+
+		return close(sockfd), 1;
+	}
+
+	const char *
+	wifi_perc(const char *iface)
+	{
+		struct ieee80211_nodereq nr;
+		int q;
+
+		if (load_ieee80211_nodereq(iface, &nr)) {
+			if (nr.nr_max_rssi) {
+				q = IEEE80211_NODEREQ_RSSI(&nr);
+			} else {
+				q = nr.nr_rssi >= -50 ? 100 : (nr.nr_rssi <= -100 ? 0 :
+				(2 * (nr.nr_rssi + 100)));
+			}
+			return bprintf("%d", q);
+		}
+
+		return NULL;
+	}
+
+	const char *
+	wifi_essid(const char *iface)
+	{
+		struct ieee80211_nodereq nr;
+
+		if (load_ieee80211_nodereq(iface, &nr)) {
+			return bprintf("%s", nr.nr_nwid);
+		}
+
+		return NULL;
+	}
 #endif

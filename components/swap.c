@@ -13,11 +13,11 @@
 		size_t bytes_read;
 
 		if (!(fp = fopen(path, "r"))) {
-			fprintf(stderr, "fopen '%s': %s\n", path, strerror(errno));
+			warn("fopen '%s':", path);
 			return 0;
 		}
 		if (!(bytes_read = fread(buf, sizeof(char), bufsiz, fp))) {
-			fprintf(stderr, "fread '%s': %s\n", path, strerror(errno));
+			warn("fread '%s':", path);
 			fclose(fp);
 			return 0;
 		}
@@ -48,7 +48,7 @@
 		}
 		sscanf(match, "SwapFree: %ld kB\n", &free);
 
-		return bprintf("%f", (float)free / 1024 / 1024);
+		return fmt_human(free * 1024, 1024);
 	}
 
 	const char *
@@ -75,6 +75,10 @@
 			return NULL;
 		}
 		sscanf(match, "SwapFree: %ld kB\n", &free);
+
+		if (total == 0) {
+			return NULL;
+		}
 
 		return bprintf("%d", 100 * (total - free - cached) / total);
 	}
@@ -94,7 +98,7 @@
 		}
 		sscanf(match, "SwapTotal: %ld kB\n", &total);
 
-		return bprintf("%f", (float)total / 1024 / 1024);
+		return fmt_human(total * 1024, 1024);
 	}
 
 	const char *
@@ -122,7 +126,7 @@
 		}
 		sscanf(match, "SwapFree: %ld kB\n", &free);
 
-		return bprintf("%f", (float)(total - free - cached) / 1024 / 1024);
+		return fmt_human((total - free - cached) * 1024, 1024);
 	}
 #elif defined(__OpenBSD__)
 	#include <stdlib.h>
@@ -131,42 +135,40 @@
 	#include <sys/types.h>
 	#include <unistd.h>
 
-	#define	dbtoqb(b) dbtob((int64_t)(b))
-
-	static void
+	static int
 	getstats(int *total, int *used)
 	{
 		struct swapent *sep, *fsep;
 		int rnswap, nswap, i;
 
-		nswap = swapctl(SWAP_NSWAP, 0, 0);
-		if (nswap < 1) {
-			fprintf(stderr, "swaptctl 'SWAP_NSWAP': %s\n", strerror(errno));
+		if ((nswap = swapctl(SWAP_NSWAP, 0, 0)) < 1) {
+			warn("swaptctl 'SWAP_NSWAP':");
+			return 1;
 		}
-
-		fsep = sep = calloc(nswap, sizeof(*sep));
-		if (!sep) {
-			fprintf(stderr, "calloc 'nswap': %s\n", strerror(errno));
+		if (!(fsep = sep = calloc(nswap, sizeof(*sep)))) {
+			warn("calloc 'nswap':");
+			return 1;
 		}
-
-		rnswap = swapctl(SWAP_STATS, (void *)sep, nswap);
-		if (rnswap < 0) {
-			fprintf(stderr, "swapctl 'SWAP_STATA': %s\n", strerror(errno));
+		if ((rnswap = swapctl(SWAP_STATS, (void *)sep, nswap)) < 0) {
+			warn("swapctl 'SWAP_STATA':");
+			return 1;
 		}
-
 		if (nswap != rnswap) {
-			fprintf(stderr, "SWAP_STATS != SWAP_NSWAP\n");
+			warn("getstats: SWAP_STATS != SWAP_NSWAP");
+			return 1;
 		}
 
 		*total = 0;
 		*used = 0;
 
 		for (i = 0; i < rnswap; i++) {
-			*total += dbtoqb(sep->se_nblks);
-			*used += dbtoqb(sep->se_inuse);
+			*total += sep->se_nblks >> 1;
+			*used += sep->se_inuse >> 1;
 		}
 
 		free(fsep);
+
+		return 0;
 	}
 
 	const char *
@@ -174,9 +176,11 @@
 	{
 		int total, used;
 
-		getstats(&total, &used);
+		if (getstats(&total, &used)) {
+			return NULL;
+		}
 
-		return bprintf("%f", (float)(total - used) / 1024 / 1024 / 1024);
+		return fmt_human((total - used) * 1024, 1024);
 	}
 
 	const char *
@@ -184,7 +188,13 @@
 	{
 		int total, used;
 
-		getstats(&total, &used);
+		if (getstats(&total, &used)) {
+			return NULL;
+		}
+
+		if (total == 0) {
+			return NULL;
+		}
 
 		return bprintf("%d", 100 * used / total);
 	}
@@ -194,9 +204,11 @@
 	{
 		int total, used;
 
-		getstats(&total, &used);
+		if (getstats(&total, &used)) {
+			return NULL;
+		}
 
-		return bprintf("%f", (float)total / 1024 / 1024 / 1024);
+		return fmt_human(total * 1024, 1024);
 	}
 
 	const char *
@@ -204,8 +216,10 @@
 	{
 		int total, used;
 
-		getstats(&total, &used);
+		if (getstats(&total, &used)) {
+			return NULL;
+		}
 
-		return bprintf("%f", (float)used / 1024 / 1024 / 1024);
+		return fmt_human(used * 1024, 1024);
 	}
 #endif

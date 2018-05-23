@@ -9,8 +9,11 @@
 	{
 		int temp;
 
-		return (pscanf(file, "%d", &temp) == 1) ?
-		       bprintf("%d", temp / 1000) : NULL;
+		if(pscanf(file, "%d", &temp) != 1) {
+			return NULL;
+		}
+
+		return bprintf("%d", temp / 1000);
 	}
 #elif defined(__OpenBSD__)
 	#include <errno.h>
@@ -21,7 +24,7 @@
 	#include <sys/sysctl.h>
 
 	const char *
-	temp(const char *null)
+	temp(const char *unused)
 	{
 		int mib[5];
 		size_t size;
@@ -36,8 +39,7 @@
 		size = sizeof(temp);
 
 		if (sysctl(mib, 5, &temp, &size, NULL, 0) < 0) {
-			fprintf(stderr, "sysctl 'SENSOR_TEMP': %s\n",
-			        strerror(errno));
+			warn("sysctl 'SENSOR_TEMP':");
 			return NULL;
 		}
 

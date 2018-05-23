@@ -1,8 +1,12 @@
 /* See LICENSE file for copyright and license details. */
 
+/* backlight */
+const char *backlight_perc(const char *);
+
 /* battery */
 const char *battery_perc(const char *);
 const char *battery_state(const char *);
+const char *battery_remaining(const char*);
 
 /* cpu */
 const char *cpu_freq(void);
@@ -33,8 +37,15 @@ const char *kernel_release(void);
 /* keyboard_indicators */
 const char *keyboard_indicators(void);
 
+/* keymap */
+const char *keymap(void);
+
 /* load_avg */
 const char *load_avg(const char *);
+
+/* netspeeds */
+const char *netspeed_rx(const char *);
+const char *netspeed_tx(const char *);
 
 /* num_files */
 const char *num_files(const char *);

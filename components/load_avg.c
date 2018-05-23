@@ -5,14 +5,14 @@
 #include "../util.h"
 
 const char *
-load_avg(const char *fmt)
+load_avg(void)
 {
 	double avgs[3];
 
 	if (getloadavg(avgs, 3) < 0) {
-		fprintf(stderr, "getloadavg: Could not obtain load average.\n");
+		warn("getloadavg: Failed to obtain load average");
 		return NULL;
 	}
 
-	return bprintf(fmt, avgs[0], avgs[1], avgs[2]);
+	return bprintf("%.2f %.2f %.2f", avgs[0], avgs[1], avgs[2]);
 }
