@@ -45,8 +45,7 @@ config.h:
 	$(CC) -o $@ -c $(CPPFLAGS) $(CFLAGS) $<
 
 clean:
-	rm -f slstatus slstatus.o $(COM:=.o) $(REQ:=.o)
-	rm -f config.h
+	rm -f slstatus slstatus.o $(COM:=.o) $(REQ:=.o) config.h
 
 dist:
 	rm -rf "slstatus-$(VERSION)"
