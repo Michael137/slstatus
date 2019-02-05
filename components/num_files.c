@@ -1,20 +1,19 @@
 /* See LICENSE file for copyright and license details. */
 #include <dirent.h>
-#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "../util.h"
 
 const char *
-num_files(const char *dir)
+num_files(const char *path)
 {
 	struct dirent *dp;
 	DIR *fd;
 	int num;
 
-	if (!(fd = opendir(dir))) {
-		warn("opendir '%s':", dir);
+	if (!(fd = opendir(path))) {
+		warn("opendir '%s':", path);
 		return NULL;
 	}
 

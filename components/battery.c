@@ -1,5 +1,4 @@
 /* See LICENSE file for copyright and license details. */
-#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -7,12 +6,8 @@
 
 #if defined(__linux__)
 	#include <limits.h>
+	#include <stdint.h>
 	#include <unistd.h>
-
-	#define CHARGE_NOW "/sys/class/power_supply/%s/charge_now"
-	#define ENERGY_NOW "/sys/class/power_supply/%s/energy_now"
-	#define CURRENT_NOW "/sys/class/power_supply/%s/current_now"
-	#define POWER_NOW "/sys/class/power_supply/%s/power_now"
 
 	static const char *
 	pick(const char *bat, const char *f1, const char *f2, char *path,
@@ -38,8 +33,7 @@
 		char path[PATH_MAX];
 
 		if (esnprintf(path, sizeof(path),
-		              "/sys/class/power_supply/%s/capacity",
-		              bat) < 0) {
+		              "/sys/class/power_supply/%s/capacity", bat) < 0) {
 			return NULL;
 		}
 		if (pscanf(path, "%d", &perc) != 1) {
@@ -63,8 +57,7 @@
 		char path[PATH_MAX], state[12];
 
 		if (esnprintf(path, sizeof(path),
-		              "/sys/class/power_supply/%s/status",
-		              bat) < 0) {
+		              "/sys/class/power_supply/%s/status", bat) < 0) {
 			return NULL;
 		}
 		if (pscanf(path, "%12s", state) != 1) {
@@ -82,28 +75,30 @@
 	const char *
 	battery_remaining(const char *bat)
 	{
-		int charge_now, current_now, m, h;
+		uintmax_t charge_now, current_now, m, h;
 		double timeleft;
 		char path[PATH_MAX], state[12];
 
 		if (esnprintf(path, sizeof(path),
-		              "/sys/class/power_supply/%s/status",
-		              bat) < 0) {
+		              "/sys/class/power_supply/%s/status", bat) < 0) {
 			return NULL;
 		}
 		if (pscanf(path, "%12s", state) != 1) {
 			return NULL;
 		}
 
-		if (!pick(bat, CHARGE_NOW, ENERGY_NOW, path, sizeof(path)) ||
-		    pscanf(path, "%d", &charge_now) < 0) {
+		if (!pick(bat, "/sys/class/power_supply/%s/charge_now",
+		          "/sys/class/power_supply/%s/energy_now", path,
+		          sizeof(path)) ||
+		    pscanf(path, "%ju", &charge_now) < 0) {
 			return NULL;
 		}
 
 		if (!strcmp(state, "Discharging")) {
-			if (!pick(bat, CURRENT_NOW, POWER_NOW, path,
+			if (!pick(bat, "/sys/class/power_supply/%s/current_now",
+			          "/sys/class/power_supply/%s/power_now", path,
 			          sizeof(path)) ||
-			    pscanf(path, "%d", &current_now) < 0) {
+			    pscanf(path, "%ju", &current_now) < 0) {
 				return NULL;
 			}
 
@@ -115,7 +110,7 @@
 			h = timeleft;
 			m = (timeleft - (double)h) * 60;
 
-			return bprintf("%dh %dm", h, m);
+			return bprintf("%juh %jum", h, m);
 		}
 
 		return "";
@@ -199,5 +194,59 @@
 		}
 
 		return NULL;
+	}
+#elif defined(__FreeBSD__)
+	#include <unistd.h>
+	#include <sys/sysctl.h>
+
+	const char *
+	battery_perc(const char *unused)
+	{
+		int cap;
+		size_t len;
+
+		len = sizeof(cap);
+		if (sysctlbyname("hw.acpi.battery.life", &cap, &len, NULL, 0) == -1
+				|| !len)
+			return NULL;
+
+		return bprintf("%d", cap);
+	}
+
+	const char *
+	battery_state(const char *unused)
+	{
+		int state;
+		size_t len;
+
+		len = sizeof(state);
+		if (sysctlbyname("hw.acpi.battery.state", &state, &len, NULL, 0) == -1
+				|| !len)
+			return NULL;
+
+		switch(state) {
+			case 0:
+			case 2:
+				return "+";
+			case 1:
+				return "-";
+			default:
+				return "?";
+		}
+	}
+
+	const char *
+	battery_remaining(const char *unused)
+	{
+		int rem;
+		size_t len;
+
+		len = sizeof(rem);
+		if (sysctlbyname("hw.acpi.battery.time", &rem, &len, NULL, 0) == -1
+				|| !len
+				|| rem == -1)
+			return NULL;
+
+		return bprintf("%uh %02um", rem / 60, rem % 60);
 	}
 #endif

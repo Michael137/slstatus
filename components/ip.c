@@ -1,5 +1,4 @@
 /* See LICENSE file for copyright and license details. */
-#include <errno.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -7,12 +6,15 @@
 #if defined(__OpenBSD__)
 	#include <sys/types.h>
 	#include <sys/socket.h>
+#elif defined(__FreeBSD__)
+	#include <netinet/in.h>
+	#include <sys/socket.h>
 #endif
 
 #include "../util.h"
 
 static const char *
-ip(const char *iface, unsigned short sa_family)
+ip(const char *interface, unsigned short sa_family)
 {
 	struct ifaddrs *ifaddr, *ifa;
 	int s;
@@ -29,7 +31,7 @@ ip(const char *iface, unsigned short sa_family)
 		}
 		s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in6),
 		                host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
-		if (!strcmp(ifa->ifa_name, iface) &&
+		if (!strcmp(ifa->ifa_name, interface) &&
 		    (ifa->ifa_addr->sa_family == sa_family)) {
 			freeifaddrs(ifaddr);
 			if (s != 0) {
@@ -46,13 +48,13 @@ ip(const char *iface, unsigned short sa_family)
 }
 
 const char *
-ipv4(const char *iface)
+ipv4(const char *interface)
 {
-	return ip(iface, AF_INET);
+	return ip(interface, AF_INET);
 }
 
 const char *
-ipv6(const char *iface)
+ipv6(const char *interface)
 {
-	return ip(iface, AF_INET6);
+	return ip(interface, AF_INET6);
 }

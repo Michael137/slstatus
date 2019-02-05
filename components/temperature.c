@@ -3,22 +3,23 @@
 
 #include "../util.h"
 
+
 #if defined(__linux__)
+	#include <stdint.h>
+
 	const char *
 	temp(const char *file)
 	{
-		int temp;
+		uintmax_t temp;
 
-		if(pscanf(file, "%d", &temp) != 1) {
+		if (pscanf(file, "%ju", &temp) != 1) {
 			return NULL;
 		}
 
-		return bprintf("%d", temp / 1000);
+		return bprintf("%ju", temp / 1000);
 	}
 #elif defined(__OpenBSD__)
-	#include <errno.h>
 	#include <stdio.h>
-	#include <string.h>
 	#include <sys/time.h> /* before <sys/sensors.h> for struct timeval */
 	#include <sys/sensors.h>
 	#include <sys/sysctl.h>
@@ -44,6 +45,27 @@
 		}
 
 		/* kelvin to celsius */
-		return bprintf("%d", (temp.value - 273150000) / 1000000);
+		return bprintf("%d", (temp.value - 273150000) / 1E6);
+	}
+#elif defined(__FreeBSD__)
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <sys/sysctl.h>
+
+	const char *
+	temp(const char *zone)
+	{
+		char buf[256];
+		int temp;
+		size_t len;
+
+		len = sizeof(temp);
+		snprintf(buf, sizeof(buf), "hw.acpi.thermal.%s.temperature", zone);
+		if (sysctlbyname(buf, &temp, &len, NULL, 0) == -1
+				|| !len)
+			return NULL;
+
+		/* kelvin to decimal celcius */
+		return bprintf("%d.%d", (temp - 2731) / 10, abs((temp - 2731) % 10));
 	}
 #endif

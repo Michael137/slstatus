@@ -1,5 +1,6 @@
 /* See LICENSE file for copyright and license details. */
 #if defined(__linux__)
+	#include <stdint.h>
 	#include <stdio.h>
 
 	#include "../util.h"
@@ -7,14 +8,14 @@
 	const char *
 	entropy(void)
 	{
-		int num;
+		uintmax_t num;
 
-		if (pscanf("/proc/sys/kernel/random/entropy_avail",
-		           "%d", &num) != 1) {
+		if (pscanf("/proc/sys/kernel/random/entropy_avail", "%ju", &num)
+		    != 1) {
 			return NULL;
 		}
 
-		return bprintf("%d", num);
+		return bprintf("%ju", num);
 	}
 #elif defined(__OpenBSD__)
 	const char *

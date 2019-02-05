@@ -1,18 +1,16 @@
 /* See LICENSE file for copyright and license details. */
-#include <errno.h>
 #include <stdio.h>
-#include <string.h>
 #include <sys/statvfs.h>
 
 #include "../util.h"
 
 const char *
-disk_free(const char *mnt)
+disk_free(const char *path)
 {
 	struct statvfs fs;
 
-	if (statvfs(mnt, &fs) < 0) {
-		warn("statvfs '%s':", mnt);
+	if (statvfs(path, &fs) < 0) {
+		warn("statvfs '%s':", path);
 		return NULL;
 	}
 
@@ -20,12 +18,12 @@ disk_free(const char *mnt)
 }
 
 const char *
-disk_perc(const char *mnt)
+disk_perc(const char *path)
 {
 	struct statvfs fs;
 
-	if (statvfs(mnt, &fs) < 0) {
-		warn("statvfs '%s':", mnt);
+	if (statvfs(path, &fs) < 0) {
+		warn("statvfs '%s':", path);
 		return NULL;
 	}
 
@@ -34,12 +32,12 @@ disk_perc(const char *mnt)
 }
 
 const char *
-disk_total(const char *mnt)
+disk_total(const char *path)
 {
 	struct statvfs fs;
 
-	if (statvfs(mnt, &fs) < 0) {
-		warn("statvfs '%s':", mnt);
+	if (statvfs(path, &fs) < 0) {
+		warn("statvfs '%s':", path);
 		return NULL;
 	}
 
@@ -47,12 +45,12 @@ disk_total(const char *mnt)
 }
 
 const char *
-disk_used(const char *mnt)
+disk_used(const char *path)
 {
 	struct statvfs fs;
 
-	if (statvfs(mnt, &fs) < 0) {
-		warn("statvfs '%s':", mnt);
+	if (statvfs(path, &fs) < 0) {
+		warn("statvfs '%s':", path);
 		return NULL;
 	}
 
