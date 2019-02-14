@@ -244,8 +244,9 @@
 		len = sizeof(rem);
 		if (sysctlbyname("hw.acpi.battery.time", &rem, &len, NULL, 0) == -1
 				|| !len
-				|| rem == -1)
+				|| rem == -1) {
 			return NULL;
+	}
 
 		return bprintf("%uh %02um", rem / 60, rem % 60);
 	}
